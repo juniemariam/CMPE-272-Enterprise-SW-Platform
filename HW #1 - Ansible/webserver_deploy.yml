@@ -1,0 +1,62 @@
+---
+- name: Deploy and Manage Web Servers
+  hosts: webservers
+  become: yes
+  tags: deploy
+  tasks:
+    - name: Install Apache
+      yum:
+        name: httpd
+        state: present
+      when: ansible_facts['distribution'] == 'Amazon'
+    
+    - name: Configure Apache to listen on port 8080
+      lineinfile:
+        path: /etc/httpd/conf/httpd.conf
+        regexp: '^Listen '
+        line: 'Listen 8080'
+        state: present
+
+    - name: Start Apache service
+      service:
+        name: httpd
+        state: started
+        enabled: yes
+
+    - name: Deploy custom web page
+      copy:
+        content: |
+          <html>
+          <body>
+            <h1>Hello World from SJSU-{{ server_id }}</h1>
+          </body>
+          </html>
+        dest: /var/www/html/index.html
+      notify:
+        - restart apache
+
+  handlers:
+    - name: restart apache
+      service:
+        name: httpd
+        state: restarted
+
+- name: Un-deploy Web Servers
+  hosts: webservers
+  become: yes
+  tags: undeploy
+  tasks:
+    - name: Stop Apache service
+      service:
+        name: httpd
+        state: stopped
+
+    - name: Remove Apache
+      yum:
+        name: httpd
+        state: absent
+
+    - name: Remove custom web page
+      file:
+        path: /var/www/html/index.html
+        state: absent
